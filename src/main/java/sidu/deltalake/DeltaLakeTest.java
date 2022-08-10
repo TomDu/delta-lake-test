@@ -2,14 +2,18 @@ package sidu.deltalake;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.delta.standalone.DeltaLog;
-import io.delta.standalone.Operation;
-import io.delta.standalone.OptimisticTransaction;
+import com.google.gson.Gson;
+import io.delta.standalone.*;
 import io.delta.standalone.actions.Action;
 import io.delta.standalone.actions.AddFile;
+import io.delta.standalone.data.CloseableIterator;
+import io.delta.standalone.expressions.EqualTo;
+import io.delta.standalone.expressions.Literal;
+import io.delta.standalone.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -83,5 +87,34 @@ public class DeltaLakeTest {
             }
         }
         LOG.info("End update");
+    }
+
+    public void query() {
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig();
+        DeltaLog log = DeltaLog.forTable(deltaLakeConfig.getHadoopConf(), deltaLakeConfig.getDeltaTablePath());
+
+        Snapshot latestSnapshot = log.update();
+        StructType schema = latestSnapshot.getMetadata().getSchema();
+
+        OptimisticTransaction txn = log.startTransaction();
+
+        assert schema != null;
+        DeltaScan scan = txn.markFilesAsRead(
+                new EqualTo(schema.column("id"), Literal.of(1))
+        );
+
+        CloseableIterator<AddFile> iter = scan.getFiles();
+        Map<String, AddFile> addFileMap = new HashMap<>();
+        while (iter.hasNext()) {
+            AddFile addFile = iter.next();
+            addFileMap.put(addFile.getPath(), addFile);
+        }
+        try {
+            iter.close();
+        } catch (IOException e) {
+            LOG.error("Error:", e);
+        }
+
+        LOG.info(new Gson().toJson(addFileMap));
     }
 }
