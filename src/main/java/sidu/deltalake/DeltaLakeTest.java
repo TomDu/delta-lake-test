@@ -61,7 +61,7 @@ public class DeltaLakeTest {
 
         executorService.shutdown();
 
-        LOG.info("logFilesPerThread: {}; parallelCount: {}; Duration: {}", logFilesPerThread, threadCount, sw.stop());
+        LOG.info("ThreadCount: {}; LogFilesPerThread: {}; Duration: {}; PerTxDurationMs: {}", threadCount, logFilesPerThread, sw.stop(), sw.elapsed(TimeUnit.MILLISECONDS) / ((long) threadCount * logFilesPerThread));
         LOG.info("--- END ---");
     }
 
